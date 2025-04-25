@@ -77,11 +77,11 @@ if uploaded_file:
         st.sidebar.header("分析设置")
         col1, col2 = st.sidebar.columns(2)
         with col1:
-            p1_start = st.date_input("期段1开始日期", datetime(2024, 3, 1))
-            p1_end = st.date_input("期段1结束日期", datetime(2024, 3, 20))
+            p1_start = st.date_input("期段1开始日期", datetime(2025, 3, 1))
+            p1_end = st.date_input("期段1结束日期", datetime(2025, 3, 20))
         with col2:
-            p2_start = st.date_input("期段2开始日期", datetime(2024, 4, 1))
-            p2_end = st.date_input("期段2结束日期", datetime(2024, 4, 19))
+            p2_start = st.date_input("期段2开始日期", datetime(2025, 4, 1))
+            p2_end = st.date_input("期段2结束日期", datetime(2025, 4, 19))
 
         # 转换日期类型
         period1 = (pd.to_datetime(p1_start), pd.to_datetime(p1_end))
