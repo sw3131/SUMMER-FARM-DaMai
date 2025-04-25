@@ -20,7 +20,7 @@ if uploaded_file is not None:
 
         results = {}
 
-        # ---- 原分析逻辑保持不变 ----
+        # ---- 分析逻辑保持不变 ----
         # 客户维度分析，包括BD列
         if 'BD' in df.columns:
             monthly_data_bd = df.groupby(['BD', '月份']).agg({'实付金额': 'sum'}).reset_index()
@@ -60,27 +60,25 @@ if uploaded_file is not None:
                     pivot_table = pivot_table.reset_index().sort_values(by='环比', ascending=False)
                     results[column_name] = pivot_table
 
-        # ---- 显示分析结果保持不变 ----
+        # 显示分析结果
         for key, value in results.items():
             st.subheader(key)
             st.dataframe(value)
 
-        # ====== 关键修复部分 ======
-        # 将多个DataFrame写入Excel的不同sheet
+        # ====== 关键修改 ======
+        # 生成Excel文件（使用openpyxl引擎替代xlsxwriter）
         output = BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
             for sheet_name, df in results.items():
-                # 处理无效的sheet名称字符
-                clean_sheet_name = sheet_name.replace(':', '_').replace('\\', '_')[:31]  # 限制长度
+                clean_sheet_name = sheet_name.replace(':', '_').replace('\\', '_')[:31]
                 df.to_excel(writer, sheet_name=clean_sheet_name, index=False)
 
-        # 获取字节数据
         excel_data = output.getvalue()
 
         # 下载按钮
         st.download_button(
             label="下载分析结果",
-            data=excel_data,  # 直接使用字节流
+            data=excel_data,
             file_name="analysis_result.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
