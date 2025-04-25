@@ -5,111 +5,91 @@ from io import BytesIO
 # 设置页面标题
 st.title("大麦-数据与策略-月环比智能")
 
+# 定义需要特殊处理的商品
+SPECIAL_ITEMS = ['安佳淡奶油', '爱乐薇(铁塔)淡奶油']
+
 # 文件上传
 uploaded_file = st.file_uploader("上传Excel文件", type=["xlsx"])
 
 if uploaded_file is not None:
-    # 读取Excel文件
-    df = pd.read_excel(uploaded_file)
+    # 读取原始数据
+    raw_df = pd.read_excel(uploaded_file)
 
-    # 确保列名存在并转换日期格式
-    if '下单时间' in df.columns:
-        df['下单时间'] = pd.to_datetime(df['下单时间'])
-        df['月份'] = df['下单时间'].dt.to_period('M')
-        latest_month = df['月份'].max()
+    if '下单时间' in raw_df.columns:
+        # 预处理数据
+        raw_df['月份'] = pd.to_datetime(raw_df['下单时间']).dt.to_period('M')
+        latest_month = raw_df['月份'].max()
 
-        # ====== 新增：排除特定商品 ======
-        # 创建过滤后的数据集（排除目标商品）
-        df_filtered = df.copy()
-        if '商品名称' in df.columns:
-            # 需要排除的商品列表
-            exclude_items = ['安佳淡奶油', '爱乐薇(铁塔)淡奶油']
-            df_filtered = df[~df['商品名称'].isin(exclude_items)]
-
-        # ====== 新增：创建专项分析数据集 ======
-        # 创建包含目标商品的数据集
-        specific_items = ['安佳淡奶油', '爱乐薇(铁塔)淡奶油']
-        df_specific = pd.DataFrame()
-        if '商品名称' in df.columns:
-            df_specific = df[df['商品名称'].isin(specific_items)]
+        # 创建两个数据集
+        main_df = raw_df[~raw_df['商品名称'].isin(SPECIAL_ITEMS)]  # 常规分析用（排除特殊商品）
+        special_df = raw_df[raw_df['商品名称'].isin(SPECIAL_ITEMS)]  # 特殊商品分析用
 
         results = {}
 
-        # ---- 原有分析逻辑（使用过滤后的数据）----
-        # 客户维度分析，包括BD列
-        if 'BD' in df_filtered.columns:
-            monthly_data_bd = df_filtered.groupby(['BD', '月份']).agg({'实付金额': 'sum'}).reset_index()
-            comparison_bd = monthly_data_bd[monthly_data_bd['月份'].isin([latest_month, latest_month - 1])]
-
-            if comparison_bd.shape[0] >= 2:
-                pivot_table_bd = comparison_bd.pivot(index='BD', columns='月份', values='实付金额')
-                pivot_table_bd['环比'] = (pivot_table_bd[latest_month] - pivot_table_bd[latest_month - 1]) / \
-                                         pivot_table_bd[latest_month - 1] * 100
-                pivot_table_bd = pivot_table_bd.reset_index().sort_values(by='环比', ascending=False)
-                results['BD维度分析'] = pivot_table_bd
-
+        # ====== 常规分析（排除特殊商品） ======
         # 客户维度分析
-        if 'BD' in df_filtered.columns:
-            monthly_data_customer = df_filtered.groupby(['客户名称', 'BD', '月份']).agg(
-                {'实付金额': 'sum'}).reset_index()
-            comparison_customer = monthly_data_customer[
-                monthly_data_customer['月份'].isin([latest_month, latest_month - 1])]
+        if 'BD' in main_df.columns:
+            # BD维度
+            monthly_bd = main_df.groupby(['BD', '月份'])['实付金额'].sum().unstack()
+            if len(monthly_bd.columns) >= 2:
+                monthly_bd['环比'] = ((monthly_bd[latest_month] - monthly_bd[latest_month - 1])
+                                      / monthly_bd[latest_month - 1].replace(0, 1)) * 100
+                results['BD维度分析'] = monthly_bd.reset_index()
 
-            if comparison_customer.shape[0] >= 2:
-                pivot_table_customer = comparison_customer.pivot(index=['客户名称', 'BD'], columns='月份',
-                                                                 values='实付金额')
-                pivot_table_customer['环比'] = (pivot_table_customer[latest_month] - pivot_table_customer[
-                    latest_month - 1]) / pivot_table_customer[latest_month - 1] * 100
-                pivot_table_customer = pivot_table_customer.reset_index().sort_values(by='环比', ascending=False)
-                results['客户维度分析'] = pivot_table_customer
+            # 客户+BD维度
+            monthly_customer = main_df.groupby(['客户名称', 'BD', '月份'])['实付金额'].sum().unstack()
+            if len(monthly_customer.columns) >= 2:
+                monthly_customer['环比'] = ((monthly_customer[latest_month] - monthly_customer[latest_month - 1])
+                                            / monthly_customer[latest_month - 1].replace(0, 1)) * 100
+                results['客户维度分析'] = monthly_customer.reset_index()
 
-        # 其他维度分析（使用过滤后的数据）
-        for column_name in ['商品名称', '主营类型', '商品分类', '订单类型']:
-            if column_name in df_filtered.columns:
-                monthly_data = df_filtered.groupby([column_name, '月份']).agg({'实付金额': 'sum'}).reset_index()
-                comparison = monthly_data[monthly_data['月份'].isin([latest_month, latest_month - 1])]
+        # 其他维度分析
+        for dim in ['主营类型', '商品分类', '订单类型']:
+            if dim in main_df.columns:
+                monthly_dim = main_df.groupby([dim, '月份'])['实付金额'].sum().unstack()
+                if len(monthly_dim.columns) >= 2:
+                    monthly_dim['环比'] = ((monthly_dim[latest_month] - monthly_dim[latest_month - 1])
+                                           / monthly_dim[latest_month - 1].replace(0, 1)) * 100
+                    results[f'{dim}分析'] = monthly_dim.reset_index()
 
-                if comparison.shape[0] >= 2:
-                    pivot_table = comparison.pivot(index=column_name, columns='月份', values='实付金额')
-                    pivot_table['环比'] = (pivot_table[latest_month] - pivot_table[latest_month - 1]) / pivot_table[
-                        latest_month - 1] * 100
-                    pivot_table = pivot_table.reset_index().sort_values(by='环比', ascending=False)
-                    results[column_name] = pivot_table
+        # ====== 特殊商品分析 ======
+        if not special_df.empty:
+            # 整体分析
+            monthly_special = special_df.groupby(['商品名称', '月份'])['实付金额'].sum().unstack()
+            if len(monthly_special.columns) >= 2:
+                monthly_special['环比'] = ((monthly_special[latest_month] - monthly_special[latest_month - 1])
+                                           / monthly_special[latest_month - 1].replace(0, 1)) * 100
+                results['特殊商品分析'] = monthly_special.reset_index()
 
-        # ====== 新增：专项商品分析 ======
-        if not df_specific.empty and '商品名称' in df_specific.columns:
-            monthly_specific = df_specific.groupby(['商品名称', '月份']).agg({'实付金额': 'sum'}).reset_index()
-            comparison_specific = monthly_specific[monthly_specific['月份'].isin([latest_month, latest_month - 1])]
+            # 特殊商品的客户分析
+            if 'BD' in special_df.columns:
+                special_customer = special_df.groupby(['客户名称', 'BD', '月份'])['实付金额'].sum().unstack()
+                if len(special_customer.columns) >= 2:
+                    special_customer['环比'] = ((special_customer[latest_month] - special_customer[latest_month - 1])
+                                                / special_customer[latest_month - 1].replace(0, 1)) * 100
+                    results['特殊商品客户分析'] = special_customer.reset_index()
 
-            if comparison_specific.shape[0] >= 2:
-                pivot_specific = comparison_specific.pivot(index='商品名称', columns='月份', values='实付金额')
-                pivot_specific['环比'] = (pivot_specific[latest_month] - pivot_specific[latest_month - 1]) / \
-                                         pivot_specific[latest_month - 1] * 100
-                pivot_specific = pivot_specific.reset_index().sort_values(by='环比', ascending=False)
-                results['专项商品分析'] = pivot_specific
-
-        # 显示分析结果
-        for key, value in results.items():
-            st.subheader(key)
-            st.dataframe(value)
+        # ====== 结果展示 ======
+        for title, df in results.items():
+            st.subheader(title)
+            st.dataframe(df.sort_values('环比', ascending=False))
 
         # 生成Excel文件
         output = BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            for sheet_name, df in results.items():
-                clean_sheet_name = sheet_name.replace(':', '_').replace('\\', '_')[:31]
-                df.to_excel(writer, sheet_name=clean_sheet_name, index=False)
+            for sheet_name, data in results.items():
+                data.to_excel(writer,
+                              sheet_name=sheet_name[:31],
+                              index=False,
+                              float_format="%.2f%%" if '环比' in data.columns else None)
 
-        excel_data = output.getvalue()
-
-        # 下载按钮
         st.download_button(
-            label="下载分析结果",
-            data=excel_data,
-            file_name="analysis_result.xlsx",
+            "下载分析结果",
+            data=output.getvalue(),
+            file_name="月环比分析报告.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     else:
-        st.error("Excel文件中缺少必要的列：'下单时间'")
+        st.error("数据中缺少必要的时间列：'下单时间'")
 else:
-    st.info("请上传一个Excel文件")
+    st.info("请上传Excel文件开始分析")
