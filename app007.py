@@ -75,7 +75,7 @@ def smart_product_filter(df, search_terms):
 def main():
     check_dependencies()
 
-    st.title("💡新版佣金工具--大麦）")
+    st.title("💡 新版佣金工具--大麦")
     st.sidebar.header("文件上传")
 
     # 文件上传组件
