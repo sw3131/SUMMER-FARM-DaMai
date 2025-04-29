@@ -75,7 +75,7 @@ def smart_product_filter(df, search_terms):
 def main():
     check_dependencies()
 
-    st.title("🍍 智能商品分析系统（严格模式）")
+    st.title("💡 新版佣金工具--大麦团队")
     st.sidebar.header("文件上传")
 
     # 文件上传组件
@@ -107,7 +107,7 @@ def main():
     )
     output_filename = st.sidebar.text_input(
         "输出文件名",
-        "inactive_products.xlsx",
+        "分析结果-大麦.xlsx",
         help="自定义结果文件的名称"
     )
 
@@ -126,9 +126,10 @@ def main():
             # 列名标准化处理
             COLUMN_MAPPING = {
                 'sku_id': ['sku_id', 'sku'],
-                'order_date': ['订单日期', '下单时间'],
+                'order_date': ['订单日期', '下单时间','时间'],
                 'BD': ['BD', 'bd_name'],
                 '类目': ['类目', 'category']
+                'm_id': ['m_id', 'cust_id']
             }
 
             # 自动识别列名
