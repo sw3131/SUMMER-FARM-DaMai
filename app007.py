@@ -107,7 +107,7 @@ def main():
     )
     output_filename = st.sidebar.text_input(
         "输出文件名",
-        "分析结果-大麦.xlsx",
+        "分析结果.xlsx",
         help="自定义结果文件的名称"
     )
 
@@ -123,10 +123,10 @@ def main():
             else:
                 df = pd.read_csv(original_file)
 
-            # 列名标准化处理（新增cust_id映射）
+            # 列名标准化处理
             COLUMN_MAPPING = {
                 'sku_id': ['sku_id', 'sku'],
-                'cust_id': ['cust_id', '客户ID', 'customer_id'],  # 新增客户ID映射
+                'cust_id': ['cust_id', '客户ID', 'customer_id'],
                 'order_date': ['订单日期', '下单时间'],
                 'BD': ['BD', 'bd_name'],
                 '类目': ['类目', 'category']
@@ -140,7 +140,7 @@ def main():
                     if found[0] != standard_name:
                         df.rename(columns={found[0]: standard_name}, inplace=True)
                 else:
-                    if standard_name in ['类目', 'order_date', 'cust_id']:  # 新增必要列检查
+                    if standard_name in ['类目', 'order_date', 'cust_id']:
                         missing_columns.append(standard_name)
 
             if missing_columns:
@@ -215,13 +215,23 @@ def main():
                 st.success(f"🎉 所有商品在过去 {threshold_days} 天都有购买记录")
                 return
 
-            # 结果处理（新增cust_id列）
-            result_columns = ['客户名称', 'cust_id', '商品名称', '类目', 'sku_id']
+            # 结果处理（修正版本）
+            result_columns = [
+                '客户名称',
+                'cust_id',
+                '商品名称',
+                '类目',
+                'sku_id',
+                'order_date'  # 确保包含日期列
+            ]
+
+            # 动态插入可选列
             if 'BD' in df.columns:
-                result_columns.insert(4, 'BD')
+                result_columns.insert(5, 'BD')
             if 'm_id' in df.columns:
                 result_columns.append('m_id')
 
+            # 执行列选择和重命名
             inactive_df = inactive_df[result_columns].rename(
                 columns={'order_date': '最后购买日期'}
             )
