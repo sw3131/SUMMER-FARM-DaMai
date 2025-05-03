@@ -25,7 +25,7 @@ def calculate_commission():
     """, unsafe_allow_html=True)
 
     st.title("💰 新版销售激励计算系统--大麦")
-    st.caption("v2.0 | 数据智能分析平台")
+    st.caption("v2.0 | 大麦数智化平台")
 
     # ================== 分步操作界面 ==================
     with st.container():
@@ -35,7 +35,7 @@ def calculate_commission():
             bonus_file = st.file_uploader("标品奖金表", type=["xlsx", "csv"], key="bonus")
 
         with col2.expander("📅 2. 设置周期", expanded=True):
-            start_date = st.date_input("奖金开始日期", value=datetime(2025, 5, 1))
+            start_date = st.date_input("奖金开始日期", value=datetime(2025, 5, 2))
             end_date = st.date_input("奖金结束日期", value=datetime(2025, 5, 31))
 
         with col3.expander("💡 使用说明"):
